@@ -13,7 +13,12 @@ namespace RabbitMQ
     
     public class EventBus1 :IEventBus
     {
-        private static int closeOpen = 0;
+
+        //TODO add acknowledgment(unack messages will be republished)
+        //TODO close channel if it is idle
+        //TODO subscribe method should take <TEVENT, TEventHandler> and dont take any parameter
+       //TODO implement unsubscribe
+        private static int closeOpen = 1;
         //private readonly ConcurrentDictionary<IEvent, List<IEventHandler>> _handlers = new Dictionary<IEvent, List<IEventHandler>>();
         //private ConcurrentDictionary<string, Exchange> _exchanges = new ConcurrentDictionary<string, Exchange>();
         private readonly IConnectionServ _persistentConnection;
