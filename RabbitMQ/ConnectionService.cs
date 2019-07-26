@@ -3,24 +3,25 @@ using RabbitMQ.Client.Events;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Microsoft.Extensions.Logging;
+using Serilog;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 namespace RabbitMQ
 {
     public class ConnectionService:IConnectionServ
     {
-        private readonly IOptions<RabbitMQOptions> _options;
+        //private readonly IOptions<RabbitMQOptions> _options
+        private readonly RabbitMQOptions _options= new RabbitMQOptions();
         private readonly ILogger<ConnectionService> _logger;
         private IConnection _connection;
         private bool _disposed;
 
         object sync_root = new object();
 
-        public ConnectionService(ILogger<ConnectionService> logger, 
-            IOptions<RabbitMQOptions> options)
+        public ConnectionService(ILogger<ConnectionService> logger)//,  IOptions<RabbitMQOptions> options)
         {
-            _options = options;
+           // _options = options;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -87,9 +88,9 @@ namespace RabbitMQ
             }
         }
 
-        public IConnection CreateConnect(IOptions<RabbitMQOptions> options)
+        public IConnection CreateConnect(RabbitMQOptions options)//IOptions<RabbitMQOptions> options)
         {
-            var opt = options.Value;
+            var opt = options;//.Value;
             var factory = new ConnectionFactory
             {
                 UserName = opt.UserName,

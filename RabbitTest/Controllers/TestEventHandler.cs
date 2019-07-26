@@ -6,19 +6,20 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace RabbitMQ
 {
     public class TestEventHandler : IEventHandler<TestEvent>
     {
-        private string s = "abc";
-        public void Handle(TestEvent @event)
+        //private static string s = "abc";
+        public async Task Handle(TestEvent @event)
         {
-            string ss = s;
-            s += s;
+            //string ss = s;
+           // s += s;
             Debug.WriteLine("Request starting");
-           
-            Debug.WriteLine("Writing letters " + ss);
+
+            Debug.WriteLine("Writing letters ");// + ss);
         }
         
 

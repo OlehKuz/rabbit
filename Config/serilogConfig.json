@@ -1,0 +1,79 @@
+{
+  "Serilog": {
+    "Using": [ "Serilog.Sinks.File", "Serilog.Settings.Configuration", "TelegramSink" ],
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft": "Warning",
+        "System": "Warning",
+        "Microsoft.AspNetCore.Authentication": "Warning"
+      }
+    },
+
+    "WriteTo": [
+      {
+        "Name": "Console",
+        "Args": {
+          "theme": "Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme::Code, Serilog.Sinks.Console",
+          "outputTemplate": "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} <s:{SourceContext}>{NewLine}{Exception}"
+        }
+      },
+      {
+        "Name": "Logger",
+        "Args": {
+          "configureLogger": {
+            "WriteTo": [
+              {
+                "Name": "File",
+                "Args": {
+                  "restrictedToMinimumLevel": "Information",
+                  "path": "Logs\\Information\\logs-.log",
+                  "rollingInterval": "Day"
+                }
+              }
+            ],
+            "Filter": [
+              {
+                "Name": "ByIncludingOnly",
+                "Args": {
+                  "expression": "@Level = 'Information'"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "Name": "File",
+        "Args": {
+          "restrictedToMinimumLevel": "Warning",
+          "path": "Logs\\Errors\\logs-.log",
+          "rollingInterval": "Day"
+        }
+      },
+      {
+        "Name": "TeleSink",
+        "Args": {
+          "telegramApiKey": "871626618:AAGsO9x0SF5cDdl8pMpmXNm6j8wEMaIj96A",
+          "telegramChatId": "-1001288907543",
+          "minimumLevel": "Error"
+        }
+      }
+    ],
+    "Enrich": [ "FromLogContext", "WithMachineName", "WithThreadId" ],
+    "Destructure": [
+      {
+        "Name": "ToMaximumDepth",
+        "Args": { "maximumDestructuringDepth": 4 }
+      },
+      {
+        "Name": "ToMaximumStringLength",
+        "Args": { "maximumStringLength": 100 }
+      },
+      {
+        "Name": "ToMaximumCollectionCount",
+        "Args": { "maximumCollectionCount": 10 }
+      }
+    ]
+  }
+}
