@@ -40,7 +40,7 @@ namespace RabbitTest
                 var logger = sp.GetRequiredService<ILogger<EventBus1>>();
 
                 return new EventBus1(connection, logger, "direct",
-                    "TestExchange", true);
+                    "TestExchange", false);
             });
         }
 
@@ -52,7 +52,7 @@ namespace RabbitTest
             app.UseMvc();
             var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
 
-            eventBus.Subscribe(new TestEventHandler());
+            eventBus.Subscribe<TestEvent, TestEventHandler>();
             var testEvent = new TestEvent();
             for(int i = 0; i< 30; i++) eventBus.Publish(testEvent);
          

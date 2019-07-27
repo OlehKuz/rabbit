@@ -7,8 +7,11 @@ namespace RabbitMQ
     public interface IEventBus
     {
         void Publish(IEvent @event);
-
-        void Subscribe<TEvent>(IEventHandler<TEvent> eventHandler) where TEvent : IEvent;
-           
+        void Subscribe<TEvent, TEventHandler>()
+            where TEvent : class,IEvent 
+            where TEventHandler : class, IEventHandler;
+        void Unsubscribe<TEvent, TEventHandler>()
+            where TEvent : class, IEvent
+            where TEventHandler : class, IEventHandler;
     }
 }

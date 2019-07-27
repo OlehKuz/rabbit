@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 
 namespace RabbitMQ
 {
-    public interface IEventHandler<in T> where T : IEvent 
+    public interface IEventHandler
     {
-        Task Handle(T @event);
+        Task Handle(IEvent @event);
     }
 }

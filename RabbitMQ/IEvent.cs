@@ -6,6 +6,6 @@ namespace RabbitMQ
 {
     public interface IEvent
     {
-        //event IE evType;
+        
     }
 }

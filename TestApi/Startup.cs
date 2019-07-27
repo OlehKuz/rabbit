@@ -56,9 +56,14 @@ namespace TestApi
             app.UseMvc();
             var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
 
-                eventBus.Subscribe(new TestEventHandler());
-                //eventBus.Subscribe<OrderStartedIntegrationEvent, OrderStartedIntegrationEventHandler>();
-            
+            eventBus.Subscribe<TestEvent, TestEventHandler>();
+            //eventBus.Subscribe<TestEvent, TestEventHandler>();
+
+
+
+            //eventBus.Subscribe<TestEvent, TestEventHandler>();
+            //eventBus.Subscribe<OrderStartedIntegrationEvent, OrderStartedIntegrationEventHandler>();
+
         }
         private void UseSerilog(IServiceCollection services)
         {

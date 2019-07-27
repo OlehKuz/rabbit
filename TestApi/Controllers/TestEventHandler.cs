@@ -10,18 +10,17 @@ using System.Threading.Tasks;
 
 namespace RabbitMQ
 {
-    public class TestEventHandler : IEventHandler<TestEvent>
+    public class TestEventHandler : IEventHandler
     {
 
         private static int num = 2;
-        public async Task Handle(TestEvent @event) {
+      
+        public async Task Handle(IEvent @event)
+        {
             //int n = num;
             //num = num + 5;
             Debug.WriteLine("Request from other srvice");
             Debug.WriteLine(num);
         }
-       
-        
-
     }
 }
