@@ -7,12 +7,16 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace RabbitMQ
 {
     
     public class EventBus1 :IEventBus
     {
+        private ConcurrentDictionary<string, Subscription> dictionary 
+            = new ConcurrentDictionary<string, Subscription>();
 
         //TODO add acknowledgment(unack messages will be republished)
         //TODO close channel if it is idle
@@ -43,10 +47,11 @@ namespace RabbitMQ
         }
         private void CreateQueue(IModel channel, string queuename, bool dureable)
         {
-            _logger.LogInformation($"Creating {_queuename} microservice queue");
+            _logger.LogInformation($"Creating {_queuename} queue");
             channel.QueueDeclare(queue: queuename,
                                  durable: dureable,
                                  exclusive: false,
+                                 //auto delete set true or not?
                                  autoDelete: false,
                                  arguments: null);
         }
@@ -63,13 +68,12 @@ namespace RabbitMQ
         }
         private IModel CreateConsumerChannel()
         {
-           
             _logger.LogInformation("Creating RabbitMQ consumer channel");
             var consumerChannel = ConnectAndGiveChannel();
-            consumerChannel.BasicQos(prefetchSize: 0, prefetchCount: 2, global: false);
             CreateExchange(consumerChannel, _exchangeName, _exchangeType);
             CreateQueue(consumerChannel, _queuename, _durableQueue);
-
+            consumerChannel.BasicQos(prefetchSize: 0, prefetchCount: 5, global: false);
+            StartConsumingEvents(consumerChannel);
             //TODO
             //if (closeOpen % 2 == 0) _consumerChannel.Dispose();
             consumerChannel.CallbackException += (sender, ea) =>
@@ -78,7 +82,6 @@ namespace RabbitMQ
                 _consumerChannel.Dispose();
                 _consumerChannel = CreateConsumerChannel();
             };
-
             return consumerChannel??CreateConsumerChannel();
         }
 
@@ -89,17 +92,48 @@ namespace RabbitMQ
                                     type: exchangeType);
         }
 
+        private async Task HandleEvent(string eventName, string message)
+        {
+            if (!dictionary.ContainsKey(eventName))
+            {
+                return;
+            }
+            var eventType = dictionary[eventName].EventType;
+            var @event = (IEvent)JsonConvert.DeserializeObject(message, eventType);
+            var eventHandlers = dictionary[eventName].EventHandlers;
+            foreach (var handler in eventHandlers)
+             {
+                await handler.Handle(@event);
+             }
+        }
+        private void StartConsumingEvents(IModel consumerChannel)
+        {
+            var consumer = new AsyncEventingBasicConsumer(consumerChannel);
+            consumer.Received += async (model, ea) =>
+            {
+                var eventName = ea.RoutingKey;
+                var message = Encoding.UTF8.GetString(ea.Body);
+                _logger.LogInformation("Asking to handle the event {EventName} ", eventName);
+                await HandleEvent(eventName,message);
+                consumerChannel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                _logger.LogInformation("Event handled");
+            };
+            consumerChannel.BasicConsume(queue: _queuename,
+                 autoAck: false,
+                 consumer: consumer);
+            _logger.LogInformation("Consumer channel is ready to handle events ");
+        }
         public void Publish(IEvent @event)
         {
-
             //TODO
-             if (closeOpen % 3 == 0) _consumerChannel.Dispose();
+            // if (closeOpen % 3 == 0) _consumerChannel.Dispose();
             //closeOpen++;
             _logger.LogInformation($"Creating RabbitMQ channel to publish event:");// {EventId} ({EventName})", @event.Id, eventName);
             using (var channel = ConnectAndGiveChannel())
             {
                 var message = JsonConvert.SerializeObject(@event);
                 var body = Encoding.UTF8.GetBytes(message);
+                //TODO
                 if (closeOpen % 4 == 0) _consumerChannel.Dispose();
                 var properties = channel.CreateBasicProperties();
                 properties.Persistent = _durableQueue; // persistent
@@ -112,57 +146,25 @@ namespace RabbitMQ
             }  
         }
 
-        public void Subscribe<TEvent, TEventHandler> ()
-            where TEvent : class, IEvent
-            where TEventHandler : class, IEventHandler
+        private void AddToSubscriptionsDictionary(Type eventType, Type handlerType, IEventHandler handlerInstance)
+            
         {
-            using (var channel = ConnectAndGiveChannel())
-            {
-               // addToSubscriptionsDictionary();
-                var eventType = typeof(TEvent);
-                var handlerType = typeof(TEventHandler);
-                var routKey = eventType.Name;
-                _logger.LogInformation("Subscribing to event {EventName} " +
-                    "with { EventHandler}", routKey, handlerType.Name);
-                channel.QueueBind(queue: _queuename,
-                                      exchange: _exchangeName,
-                                      routingKey: routKey); 
-                StartBasicConsume(eventType,handlerType);
-            }        
+            var subscription = dictionary.GetOrAdd(eventType.Name, new Subscription(eventType));
+            subscription.AddEventHandler(handlerType, handlerInstance);
         }
 
-        private void StartBasicConsume(Type @event, Type eventHandler) 
+        public void Subscribe<TEvent, TEventHandler> ()
+            where TEvent : class, IEvent
+            where TEventHandler : class, IEventHandler<TEvent>
         {
-            _logger.LogTrace("Starting RabbitMQ basic consume");
-
-            if (_consumerChannel != null&&_consumerChannel.IsOpen)
-            {
-                var consumer = new EventingBasicConsumer(_consumerChannel);
-                consumer.Received += async (model, ea) =>
-                {
-                    var body = ea.Body;
-                    var routingKey = ea.RoutingKey;
-                    var message = Encoding.UTF8.GetString(body);
-                    var eventMessage = JsonConvert.DeserializeObject(message, @event);
-                    
-                    _logger.LogInformation("Asking {EventHandler} to handle the event {EventName} ", eventHandler.Name, routingKey);
-                 
-                    IEventHandler handler = (IEventHandler)Activator.CreateInstance(eventHandler);
-                    await handler.Handle((IEvent)eventMessage);
-                   
-                    _logger.LogInformation("Event handled");
-                    //TODO
-                    _consumerChannel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
-                };
-                _logger.LogInformation("Consumer channel is ready to handle the event {EventName} ", @event.Name);
-                _consumerChannel.BasicConsume(queue: _queuename,
-                                     autoAck: false,
-                                     consumer: consumer);
-            }
-            else
-            {
-                _logger.LogError("StartBasicConsume can't call on _consumerChannel == null");
-            }
+            var eventType = typeof(TEvent);
+            var handlerType = typeof(TEventHandler);
+            IEventHandler<TEvent> handlerInstance = (IEventHandler<TEvent>) Activator.CreateInstance(handlerType);
+            AddToSubscriptionsDictionary(eventType,handlerType, handlerInstance);
+            _logger.LogInformation("Subscribing to event {EventName} with { EventHandler}", eventType.Name, handlerType.Name);
+            _consumerChannel.QueueBind(queue: _queuename,
+                                      exchange: _exchangeName,
+                                      routingKey: eventType.Name); 
         }
 
         public void Dispose()
@@ -173,7 +175,7 @@ namespace RabbitMQ
 
         public void Unsubscribe<TEvent, TEventHandler>()
              where TEvent : class, IEvent
-            where TEventHandler : class, IEventHandler
+            where TEventHandler : class, IEventHandler<TEvent>
         {
             throw new NotImplementedException();
         }

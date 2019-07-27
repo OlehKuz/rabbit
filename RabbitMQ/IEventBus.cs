@@ -9,9 +9,9 @@ namespace RabbitMQ
         void Publish(IEvent @event);
         void Subscribe<TEvent, TEventHandler>()
             where TEvent : class,IEvent 
-            where TEventHandler : class, IEventHandler;
+            where TEventHandler : class, IEventHandler<TEvent>;
         void Unsubscribe<TEvent, TEventHandler>()
             where TEvent : class, IEvent
-            where TEventHandler : class, IEventHandler;
+            where TEventHandler : class, IEventHandler<TEvent>;
     }
 }

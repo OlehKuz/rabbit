@@ -10,12 +10,12 @@ using System.Threading.Tasks;
 
 namespace RabbitMQ
 {
-    public class TestEventHandler : IEventHandler
+    public class TestEventHandler : IEventHandler<TestEvent>
     {
 
         private static int num = 2;
       
-        public async Task Handle(IEvent @event)
+        public async Task Handle(TestEvent @event)
         {
             //int n = num;
             //num = num + 5;
