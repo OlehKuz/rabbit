@@ -8,10 +8,10 @@ namespace RabbitMQ
     {
         void Publish(IEvent @event);
         void Subscribe<TEvent, TEventHandler>()
-            where TEvent : class,IEvent 
-            where TEventHandler : class, IEventHandler<TEvent>;
+            where TEvent : IEvent 
+            where TEventHandler : IEventHandler;
         void Unsubscribe<TEvent, TEventHandler>()
-            where TEvent : class, IEvent
-            where TEventHandler : class, IEventHandler<TEvent>;
+            where TEvent : IEvent
+            where TEventHandler : IEventHandler;
     }
 }

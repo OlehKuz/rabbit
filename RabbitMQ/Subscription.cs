@@ -5,18 +5,18 @@ using System.Text;
 
 namespace RabbitMQ
 {
-    public sealed class Subscription<TEvent> where TEvent:IEvent
+    public sealed class Subscription 
     {
         public Type EventType { get; }
         private HashSet<Type> handlerTypes  = new HashSet<Type>();
-        public List<IEventHandler<TEvent>> EventHandlers { get; } = new List<IEventHandler<TEvent>>();
+        public List<IEventHandler> EventHandlers { get; } = new List<IEventHandler>();
 
         public Subscription(Type eventType)
         {
             EventType = eventType;
         }
 
-        public void AddEventHandler(Type handlerType, IEventHandler<TEvent> handler)
+        public void AddEventHandler(Type handlerType, IEventHandler handler)
         {
             //if (handlerTypes.Any(tp=>tp == handlerType)) return;
             if (handlerTypes.Contains(handlerType)) return;

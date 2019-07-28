@@ -24,7 +24,7 @@ namespace RabbitMQ
        //TODO implement unsubscribe
        //TODO prefetch 10
        //set autodelete for nondurable queues
-        private static int closeOpen = 1;
+        //private static int closeOpen = 1;
         //private readonly ConcurrentDictionary<IEvent, List<IEventHandler>> _handlers = new Dictionary<IEvent, List<IEventHandler>>();
         //private ConcurrentDictionary<string, Exchange> _exchanges = new ConcurrentDictionary<string, Exchange>();
         private readonly IConnectionServ _persistentConnection;
@@ -63,7 +63,7 @@ namespace RabbitMQ
                 _persistentConnection.TryConnect();
             }
             //TODO
-            if (closeOpen % 7 == 0) _consumerChannel.Close();
+            //if (closeOpen % 7 == 0) _consumerChannel.Close();
             return _persistentConnection.CreateModel();
         }
         private IModel CreateConsumerChannel()
@@ -108,7 +108,7 @@ namespace RabbitMQ
         }
         private void StartConsumingEvents(IModel consumerChannel)
         {
-            var consumer = new AsyncEventingBasicConsumer(consumerChannel);
+            var consumer = new EventingBasicConsumer(consumerChannel);
             consumer.Received += async (model, ea) =>
             {
                 var eventName = ea.RoutingKey;
@@ -134,7 +134,7 @@ namespace RabbitMQ
                 var message = JsonConvert.SerializeObject(@event);
                 var body = Encoding.UTF8.GetBytes(message);
                 //TODO
-                if (closeOpen % 4 == 0) _consumerChannel.Dispose();
+                //if (closeOpen % 4 == 0) _consumerChannel.Dispose();
                 var properties = channel.CreateBasicProperties();
                 properties.Persistent = _durableQueue; // persistent
                 var routKey = @event.GetType().Name;
@@ -147,20 +147,21 @@ namespace RabbitMQ
         }
 
         private void AddToSubscriptionsDictionary(Type eventType, Type handlerType, IEventHandler handlerInstance)
-            
+        
         {
             var subscription = dictionary.GetOrAdd(eventType.Name, new Subscription(eventType));
             subscription.AddEventHandler(handlerType, handlerInstance);
         }
 
-        public void Subscribe<TEvent, TEventHandler> ()
-            where TEvent : class, IEvent
-            where TEventHandler : class, IEventHandler<TEvent>
-        {
+        public void Subscribe<TEvent, TEventHandler>()
+            where TEvent : IEvent
+            where TEventHandler : IEventHandler
+        { 
             var eventType = typeof(TEvent);
             var handlerType = typeof(TEventHandler);
-            IEventHandler<TEvent> handlerInstance = (IEventHandler<TEvent>) Activator.CreateInstance(handlerType);
-            AddToSubscriptionsDictionary(eventType,handlerType, handlerInstance);
+            var handlerInstance = Activator.CreateInstance(handlerType);
+
+            AddToSubscriptionsDictionary(eventType,handlerType, (IEventHandler)handlerInstance);
             _logger.LogInformation("Subscribing to event {EventName} with { EventHandler}", eventType.Name, handlerType.Name);
             _consumerChannel.QueueBind(queue: _queuename,
                                       exchange: _exchangeName,
@@ -174,10 +175,20 @@ namespace RabbitMQ
         }
 
         public void Unsubscribe<TEvent, TEventHandler>()
-             where TEvent : class, IEvent
-            where TEventHandler : class, IEventHandler<TEvent>
+             where TEvent : IEvent
+            where TEventHandler : IEventHandler
         {
-            throw new NotImplementedException();
+            using (var channel = ConnectAndGiveChannel())
+            {
+                var eventName = typeof(TEvent).Name;
+                var subscription = dictionary[eventName];
+                if (subscription != null) subscription.RemoveEventHandler(typeof(TEventHandler));
+                channel.QueueUnbind(
+                    queue: _queuename,
+                    exchange: _exchangeName,
+                    routingKey: eventName
+                );
+            }
         }
     }
 }
