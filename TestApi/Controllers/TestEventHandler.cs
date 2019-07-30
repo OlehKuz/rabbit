@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using STP.Interfaces.Events;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,7 +16,7 @@ namespace RabbitMQ
 
         private static int num = 2;
       
-        public async Task Handle(IEvent @event)
+        public async Task HandleAsync(IEvent @event)
         {
             //int n = num;
             //num = num + 5;

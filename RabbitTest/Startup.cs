@@ -14,6 +14,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ;
 using Serilog;
+using STP.Interfaces.Events;
+using STP.RabbitMq;
 
 namespace RabbitTest
 {
@@ -34,13 +36,13 @@ namespace RabbitTest
             UseSerilog(services);
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
             services.AddSingleton<IConnectionServ, ConnectionService>();
-            services.AddSingleton<IEventBus, EventBus1>(sp =>
+            services.AddSingleton<IEventBus, EventBus>(sp =>
             {
                 var connection = sp.GetRequiredService<IConnectionServ>();
-                var logger = sp.GetRequiredService<ILogger<EventBus1>>();
+                var logger = sp.GetRequiredService<ILogger<EventBus>>();
 
-                return new EventBus1(connection, logger, "direct",
-                    "TestExchange", false);
+                return new EventBus(connection, logger, "direct",
+                    "TestExchange", "",false);
             });
         }
 
@@ -54,7 +56,7 @@ namespace RabbitTest
 
             eventBus.Subscribe<TestEvent, TestEventHandler>();
             var testEvent = new TestEvent();
-            for(int i = 0; i< 30; i++) eventBus.Publish(testEvent);
+            for(int i = 0; i< 400; i++) eventBus.Publish(testEvent);
          
         }
         private void UseSerilog(IServiceCollection services)

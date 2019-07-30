@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using STP.Interfaces.Events;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,7 +14,7 @@ namespace RabbitMQ
     public class TestEventHandler : IEventHandler
     {
         //private static string s = "abc";
-        public async Task Handle(IEvent @event)
+        public async Task HandleAsync(IEvent @event)
         {
             //string ss = s;
            // s += s;

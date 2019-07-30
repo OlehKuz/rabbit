@@ -8,38 +8,35 @@ using System.Reflection;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
+using STP.Interfaces.Events;
 
-namespace RabbitMQ
+namespace STP.RabbitMq
 {
 
-    public class EventBus1 : IEventBus
+    public class EventBus : IEventBus
     {
-        private ConcurrentDictionary<string, Subscription<IEvent>> dictionary
-            = new ConcurrentDictionary<string, Subscription<IEvent>>();
+        private ConcurrentDictionary<string, Subscription> dictionary
+            = new ConcurrentDictionary<string, Subscription>();
 
         private readonly IConnectionServ _persistentConnection;
         private IModel _consumerChannel;
         private readonly string _exchangeName;
         private readonly string _exchangeType;
         private readonly string _queuename;
-        private readonly ILogger<EventBus1> _logger;
+        private readonly ILogger<EventBus> _logger;
         private readonly bool _durableQueue;
-        // i cant do because it is static public static ExchangeType exchangeType{set;} = ExchangeType.Direct;
-        
-        // How to check static Exchange type, i cant have it as a parameter 
-        public EventBus1(IConnectionServ persistentConnection, ILogger<EventBus1> logger, string exchangeType, string exchangeName, string queueName, bool durableQueue)
+        public EventBus(IConnectionServ persistentConnection, ILogger<EventBus> logger, string exchangeType, string exchangeName, string queueName, bool durableQueue)
         {
-            
-            _persistentConnection = persistentConnection ?? throw new ArgumentNullException(nameof(persistentConnection)); ;
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _persistentConnection = persistentConnection;
+            _logger = logger;
 
-            _queuename = string.IsNullOrEmpty(queueName)?  Assembly.GetCallingAssembly().GetName().Name : queueName;
-            _durableQueue= durableQueue;
+            _queuename = string.IsNullOrEmpty(queueName) ? Assembly.GetCallingAssembly().GetName().Name : queueName;
+            _durableQueue = durableQueue;
             _exchangeName = exchangeName;
             _exchangeType = exchangeType;
             _consumerChannel = CreateConsumerChannel();
         }
-        
+
         private IModel CreateConsumerChannel()
         {
             _logger.LogInformation("Creating RabbitMQ consumer channel");
@@ -54,9 +51,9 @@ namespace RabbitMQ
                 _consumerChannel.Dispose();
                 _consumerChannel = CreateConsumerChannel();
             };
-            return consumerChannel??CreateConsumerChannel();
+            return consumerChannel ?? CreateConsumerChannel();
         }
-       
+
         private IModel ConnectAndGiveChannel()
         {
             _logger.LogInformation("Connecting and returning channel");
@@ -82,7 +79,7 @@ namespace RabbitMQ
                                  autoDelete: false,
                                  arguments: null);
         }
-        
+
         private void StartConsumingEvents(IModel consumerChannel)
         {
             var consumer = new EventingBasicConsumer(consumerChannel);
@@ -91,7 +88,7 @@ namespace RabbitMQ
                 var eventName = ea.RoutingKey;
                 var message = Encoding.UTF8.GetString(ea.Body);
                 _logger.LogInformation("Asking to handle the event {EventName} ", eventName);
-                await HandleEvent(eventName,message);
+                await HandleEvent(eventName, message);
                 consumerChannel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
                 _logger.LogInformation("Event handled");
             };
@@ -111,7 +108,7 @@ namespace RabbitMQ
             var eventHandlers = dictionary[eventName].EventHandlers;
             foreach (var handler in eventHandlers)
             {
-                await handler.Handle(@event);
+                await handler.HandleAsync(@event);
             }
         }
         public void Publish(IEvent @event)
@@ -124,37 +121,36 @@ namespace RabbitMQ
                 var properties = channel.CreateBasicProperties();
                 properties.Persistent = _durableQueue; // persistent, nonpersistent
                 var routKey = @event.GetType().Name;
-                _logger.LogInformation("Publishing event to RabbitMQ: {EventName}",routKey);
+                _logger.LogInformation("Publishing event to RabbitMQ: {EventName}", routKey);
                 channel.BasicPublish(exchange: _exchangeName,
                                       routingKey: routKey,
                                       basicProperties: properties,
                                       body: body);
-            }  
+            }
         }
 
         public void Subscribe<TEvent, TEventHandler>()
             where TEvent : IEvent
-            where TEventHandler : IEventHandler<TEvent>
-        { 
+            where TEventHandler : IEventHandler
+        {
             var eventType = typeof(TEvent);
             var handlerType = typeof(TEventHandler);
-            var handlerInstance = (IEventHandler<TEvent>)Activator.CreateInstance(handlerType);
+            var handlerInstance = Activator.CreateInstance(handlerType);
 
-            AddToSubscriptionsDictionary(eventType,handlerType, handlerInstance);
+            AddToSubscriptionsDictionary(eventType, handlerType, (IEventHandler)handlerInstance);
             _logger.LogInformation("Subscribing to event {EventName} with { EventHandler}", eventType.Name, handlerType.Name);
             _consumerChannel.QueueBind(queue: _queuename,
                                       exchange: _exchangeName,
-                                      routingKey: eventType.Name); 
+                                      routingKey: eventType.Name);
         }
 
-        private void AddToSubscriptionsDictionary<TEvent>(Type eventType, Type handlerType, IEventHandler<TEvent> handlerInstance)
-            where TEvent:IEvent
+        private void AddToSubscriptionsDictionary(Type eventType, Type handlerType, IEventHandler handlerInstance)
         {
-            var subscription = dictionary.GetOrAdd(eventType.Name, new Subscription<IEvent>(eventType));
-            subscription.AddEventHandler(handlerType, (IEventHandler<IEvent>)handlerInstance);
+            var subscription = dictionary.GetOrAdd(eventType.Name, new Subscription(eventType));
+            subscription.AddEventHandler(handlerType, handlerInstance);
         }
 
-        /*public void Unsubscribe<TEvent, TEventHandler>()
+        public void Unsubscribe<TEvent, TEventHandler>()
              where TEvent : IEvent
             where TEventHandler : IEventHandler
         {
@@ -169,7 +165,7 @@ namespace RabbitMQ
                     routingKey: eventName
                 );
             }
-        }*/
+        }
 
         public void Dispose()
         {

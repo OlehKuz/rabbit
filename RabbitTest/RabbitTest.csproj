@@ -11,7 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RabbitMQ\RabbitMQ.csproj" />
+    <ProjectReference Include="..\STP.Interfaces\STP.Interfaces.csproj" />
+    <ProjectReference Include="..\STP.RabbitMq\STP.RabbitMq.csproj" />
   </ItemGroup>
 
 </Project>

@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestApi", "TestApi\TestApi.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitTest", "RabbitTest\RabbitTest.csproj", "{82AD1F0F-48A3-424E-BD41-6F156B4713B3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "STP.Interfaces", "STP.Interfaces\STP.Interfaces.csproj", "{5B64C50B-4DA7-4092-8DD7-CC43AE0D414B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "STP.RabbitMq", "STP.RabbitMq\STP.RabbitMq.csproj", "{8190F377-7BEB-4793-A223-5901C57A8AE9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{82AD1F0F-48A3-424E-BD41-6F156B4713B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{82AD1F0F-48A3-424E-BD41-6F156B4713B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{82AD1F0F-48A3-424E-BD41-6F156B4713B3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B64C50B-4DA7-4092-8DD7-CC43AE0D414B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B64C50B-4DA7-4092-8DD7-CC43AE0D414B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B64C50B-4DA7-4092-8DD7-CC43AE0D414B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B64C50B-4DA7-4092-8DD7-CC43AE0D414B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8190F377-7BEB-4793-A223-5901C57A8AE9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8190F377-7BEB-4793-A223-5901C57A8AE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8190F377-7BEB-4793-A223-5901C57A8AE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8190F377-7BEB-4793-A223-5901C57A8AE9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,24 +1,22 @@
-﻿using System;
+﻿using STP.Interfaces.Events;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
-namespace RabbitMQ
+namespace STP.RabbitMq
 {
-    public sealed class Subscription <TEvent> where TEvent:IEvent
+    public sealed class Subscription
     {
         public Type EventType { get; }
-        private HashSet<Type> handlerTypes  = new HashSet<Type>();
-        public List<IEventHandler<TEvent>> EventHandlers { get; } = new List<IEventHandler<TEvent>>();
+        private HashSet<Type> handlerTypes = new HashSet<Type>();
+        public List<IEventHandler> EventHandlers { get; } = new List<IEventHandler>();
 
         public Subscription(Type eventType)
         {
             EventType = eventType;
         }
 
-        public void AddEventHandler<TEvent>(Type handlerType, IEventHandler<TEvent> handler) where TEvent:IEvent
+        public void AddEventHandler(Type handlerType, IEventHandler handler)
         {
-            //if (handlerTypes.Any(tp=>tp == handlerType)) return;
             if (handlerTypes.Contains(handlerType)) return;
             handlerTypes.Add(handlerType);
             EventHandlers.Add(handler);
@@ -28,7 +26,7 @@ namespace RabbitMQ
         {
             if (handlerTypes.Contains(handlerType))
             {
-                EventHandlers.RemoveAll(e=>e.GetType()==handlerType);
+                EventHandlers.RemoveAll(e => e.GetType() == handlerType);
                 handlerTypes.Remove(handlerType);
             }
         }

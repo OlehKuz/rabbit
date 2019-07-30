@@ -5,13 +5,13 @@ using System.Threading.Tasks;
 
 namespace RabbitMQ
 {
-   /* public interface IEventHandler<in TEvent> where TEvent:IEvent
+    public interface IEventHandler<in TEvent> where TEvent:IEvent
     {
         Task Handle(TEvent @event);
-    }*/
-    public interface IEventHandler
+    }
+    /*public interface IEventHandler
     {
         Task Handle(IEvent @event);
-    }
+    }*/
 
 }

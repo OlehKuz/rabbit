@@ -6,66 +6,39 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using RabbitMQ;
-using Serilog;
-using STP.Interfaces.Events;
-using STP.RabbitMq;
 
-namespace TestApi
+using Serilog;
+
+
+
+
+namespace STP.RabbitMq
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration, IHostingEnvironment hostingEnvironment)
+        public Startup(IConfiguration configuration,IHostingEnvironment hostingEnvironment)
         {
             Configuration = configuration;
             HostingEnvironment = hostingEnvironment;
 
         }
         protected IHostingEnvironment HostingEnvironment { get; }
-
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             UseSerilog(services);
-           
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
-            services.AddSingleton<IConnectionServ, ConnectionService>();
-            services.AddSingleton<IEventBus, EventBus>(sp =>
-            {
-                var connection = sp.GetRequiredService<IConnectionServ>();
-                var logger = sp.GetRequiredService<ILogger<EventBus>>();
-
-                return new EventBus(connection,logger, "direct",
-                    "TestExchange","", true);
-            });
-            
-
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, ILoggerFactory loggerFactory)
         {
             loggerFactory.AddSerilog();
-
-
-            app.UseMvc();
-            var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
-
-            eventBus.Subscribe<TestEvent, TestEventHandler>();
-            //eventBus.Subscribe<TestEvent, TestEventHandler>();
-
-
-
-            //eventBus.Subscribe<TestEvent, TestEventHandler>();
-            //eventBus.Subscribe<OrderStartedIntegrationEvent, OrderStartedIntegrationEventHandler>();
-
         }
         private void UseSerilog(IServiceCollection services)
         {
