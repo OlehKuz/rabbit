@@ -41,9 +41,9 @@ namespace RabbitTest
                 var connection = sp.GetRequiredService<IConnectionServ>();
                 var logger = sp.GetRequiredService<ILogger<EventBus>>();
 
-                return new EventBus(connection, logger, "direct",
-                    "TestExchange", "",false);
+                return new EventBus(connection, logger,  "",false);
             });
+            
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -53,11 +53,14 @@ namespace RabbitTest
 
             app.UseMvc();
             var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
-
-            eventBus.Subscribe<TestEvent, TestEventHandler>();
+            eventBus.CreateExchange("TestExchange","direct");
+            eventBus.Subscribe<TestEvent, TestEventHandler>("TestExchange");
+            eventBus.CreateExchange("Exchange2", "direct");
+            eventBus.Subscribe<TestEvent, TestEventHandler>("Exchange2");
             var testEvent = new TestEvent();
-            for(int i = 0; i< 400; i++) eventBus.Publish(testEvent);
-         
+            for(int i = 0; i< 20; i++) eventBus.Publish(testEvent, "TestExchange");
+            for (int i = 0; i < 20; i++) eventBus.Publish(testEvent, "Exchange2");
+
         }
         private void UseSerilog(IServiceCollection services)
         {

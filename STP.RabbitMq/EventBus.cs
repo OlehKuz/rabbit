@@ -20,20 +20,20 @@ namespace STP.RabbitMq
 
         private readonly IConnectionServ _persistentConnection;
         private IModel _consumerChannel;
-        private readonly string _exchangeName;
-        private readonly string _exchangeType;
+        //private readonly string _exchangeName;
+       // private readonly string _exchangeType;
         private readonly string _queuename;
         private readonly ILogger<EventBus> _logger;
         private readonly bool _durableQueue;
-        public EventBus(IConnectionServ persistentConnection, ILogger<EventBus> logger, string exchangeType, string exchangeName, string queueName, bool durableQueue)
+        public EventBus(IConnectionServ persistentConnection, ILogger<EventBus> logger, string queueName, bool durableQueue)
         {
             _persistentConnection = persistentConnection;
             _logger = logger;
 
             _queuename = string.IsNullOrEmpty(queueName) ? Assembly.GetCallingAssembly().GetName().Name : queueName;
             _durableQueue = durableQueue;
-            _exchangeName = exchangeName;
-            _exchangeType = exchangeType;
+            //_exchangeName = exchangeName;
+            //_exchangeType = exchangeType;
             _consumerChannel = CreateConsumerChannel();
         }
 
@@ -41,7 +41,7 @@ namespace STP.RabbitMq
         {
             _logger.LogInformation("Creating RabbitMQ consumer channel");
             var consumerChannel = ConnectAndGiveChannel();
-            CreateExchange(consumerChannel, _exchangeName, _exchangeType);
+            //CreateExchange(consumerChannel, _exchangeName, _exchangeType);
             CreateQueue(consumerChannel, _queuename, _durableQueue);
             consumerChannel.BasicQos(prefetchSize: 0, prefetchCount: 5, global: false);
             StartConsumingEvents(consumerChannel);
@@ -63,15 +63,19 @@ namespace STP.RabbitMq
             }
             return _persistentConnection.CreateModel();
         }
-        private void CreateExchange(IModel channel, string exchangeName, string exchangeType)
+        public void CreateExchange(string exchangeName, string exchangeType)
         {
-            _logger.LogInformation($"Creating exchange {exchangeName} of type {exchangeType} ");
-            channel.ExchangeDeclare(exchange: exchangeName,
-                                    type: exchangeType);
+            using (var channel = ConnectAndGiveChannel())
+            {
+                _logger.LogInformation($"Creating exchange {exchangeName} of type {exchangeType} ");
+                channel.ExchangeDeclare(exchange: exchangeName,
+                                        type: exchangeType);
+            }
+                
         }
         private void CreateQueue(IModel channel, string queuename, bool dureable)
         {
-            _logger.LogInformation($"Creating {_queuename} queue");
+            _logger.LogInformation($"Creating {queuename} queue");
             channel.QueueDeclare(queue: queuename,
                                  durable: dureable,
                                  exclusive: false,
@@ -111,7 +115,7 @@ namespace STP.RabbitMq
                 await handler.HandleAsync(@event);
             }
         }
-        public void Publish(IEvent @event)
+        public void Publish(IEvent @event, string exchangeName)
         {
             _logger.LogInformation($"Creating RabbitMQ channel to publish event");
             using (var channel = ConnectAndGiveChannel())
@@ -122,14 +126,14 @@ namespace STP.RabbitMq
                 properties.Persistent = _durableQueue; // persistent, nonpersistent
                 var routKey = @event.GetType().Name;
                 _logger.LogInformation("Publishing event to RabbitMQ: {EventName}", routKey);
-                channel.BasicPublish(exchange: _exchangeName,
+                channel.BasicPublish(exchange: exchangeName,
                                       routingKey: routKey,
                                       basicProperties: properties,
                                       body: body);
             }
         }
 
-        public void Subscribe<TEvent, TEventHandler>()
+        public void Subscribe<TEvent, TEventHandler>(string exchangeName)
             where TEvent : IEvent
             where TEventHandler : IEventHandler
         {
@@ -140,7 +144,7 @@ namespace STP.RabbitMq
             AddToSubscriptionsDictionary(eventType, handlerType, (IEventHandler)handlerInstance);
             _logger.LogInformation("Subscribing to event {EventName} with { EventHandler}", eventType.Name, handlerType.Name);
             _consumerChannel.QueueBind(queue: _queuename,
-                                      exchange: _exchangeName,
+                                      exchange: exchangeName,
                                       routingKey: eventType.Name);
         }
 
@@ -150,7 +154,7 @@ namespace STP.RabbitMq
             subscription.AddEventHandler(handlerType, handlerInstance);
         }
 
-        public void Unsubscribe<TEvent, TEventHandler>()
+        public void Unsubscribe<TEvent, TEventHandler>(string exchangeName)
              where TEvent : IEvent
             where TEventHandler : IEventHandler
         {
@@ -161,7 +165,7 @@ namespace STP.RabbitMq
                 if (subscription != null) subscription.RemoveEventHandler(typeof(TEventHandler));
                 channel.QueueUnbind(
                     queue: _queuename,
-                    exchange: _exchangeName,
+                    exchange: exchangeName,
                     routingKey: eventName
                 );
             }
@@ -172,7 +176,6 @@ namespace STP.RabbitMq
             _logger.LogWarning("Disposing consumer channel ");
             _consumerChannel?.Dispose();
         }
-
     }
 }
 

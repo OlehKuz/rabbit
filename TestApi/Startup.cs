@@ -42,11 +42,8 @@ namespace TestApi
                 var connection = sp.GetRequiredService<IConnectionServ>();
                 var logger = sp.GetRequiredService<ILogger<EventBus>>();
 
-                return new EventBus(connection,logger, "direct",
-                    "TestExchange","", true);
+                return new EventBus(connection, logger, "someQueueName", false);
             });
-            
-
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -56,10 +53,13 @@ namespace TestApi
 
 
             app.UseMvc();
+          
             var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
-
-            eventBus.Subscribe<TestEvent, TestEventHandler>();
-            //eventBus.Subscribe<TestEvent, TestEventHandler>();
+            eventBus.CreateExchange("TestExchange", "direct");
+            eventBus.Subscribe<TestEvent, TestEventHandler>("TestExchange");
+            eventBus.Unsubscribe<TestEvent, TestEventHandler>("TestExchange");
+            eventBus.CreateExchange("Exchange2", "direct");
+            eventBus.Subscribe<TestEvent, TestEventHandler>("Exchange2");
 
 
 
