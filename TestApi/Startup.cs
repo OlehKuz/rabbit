@@ -50,22 +50,11 @@ namespace TestApi
         public void Configure(IApplicationBuilder app, ILoggerFactory loggerFactory)
         {
             loggerFactory.AddSerilog();
-
-
             app.UseMvc();
-          
             var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
-            eventBus.CreateExchange("TestExchange", "direct");
-            eventBus.Subscribe<TestEvent, TestEventHandler>("TestExchange");
-            eventBus.Unsubscribe<TestEvent, TestEventHandler>("TestExchange");
-            eventBus.CreateExchange("Exchange2", "direct");
-            eventBus.Subscribe<TestEvent, TestEventHandler>("Exchange2");
-
-
-
-            //eventBus.Subscribe<TestEvent, TestEventHandler>();
-            //eventBus.Subscribe<OrderStartedIntegrationEvent, OrderStartedIntegrationEventHandler>();
-
+            eventBus.Subscribe<TestEvent, TestEventHandler>("TestExchange","direct");
+            eventBus.Unsubscribe<TestEvent, TestEventHandler>("TestExchange");      
+            eventBus.Subscribe<TestEvent, TestEventHandler>("Exchange2", "direct");
         }
         private void UseSerilog(IServiceCollection services)
         {

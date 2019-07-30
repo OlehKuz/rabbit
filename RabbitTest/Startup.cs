@@ -53,13 +53,11 @@ namespace RabbitTest
 
             app.UseMvc();
             var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
-            eventBus.CreateExchange("TestExchange","direct");
-            eventBus.Subscribe<TestEvent, TestEventHandler>("TestExchange");
-            eventBus.CreateExchange("Exchange2", "direct");
-            eventBus.Subscribe<TestEvent, TestEventHandler>("Exchange2");
+            eventBus.Subscribe<TestEvent, TestEventHandler>("TestExchange", "direct");
+            eventBus.Subscribe<TestEvent, TestEventHandler>("Exchange2", "direct");
             var testEvent = new TestEvent();
-            for(int i = 0; i< 20; i++) eventBus.Publish(testEvent, "TestExchange");
-            for (int i = 0; i < 20; i++) eventBus.Publish(testEvent, "Exchange2");
+            for(int i = 0; i< 20; i++) eventBus.Publish(testEvent, "TestExchange", "direct");
+            for (int i = 0; i < 20; i++) eventBus.Publish(testEvent, "Exchange2", "direct");
 
         }
         private void UseSerilog(IServiceCollection services)
