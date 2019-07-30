@@ -13,17 +13,16 @@ using STP.Interfaces.Events;
 namespace STP.RabbitMq
 {
 
-    public class EventBus : IEventBus
+    public class MessageBus : IMessageBus
     {
-        private ConcurrentDictionary<string, Subscription> dictionary
-            = new ConcurrentDictionary<string, Subscription>();
+        private ConcurrentDictionary<string, Subscription> dictionary = new ConcurrentDictionary<string, Subscription>();
 
-        private readonly IConnectionServ _persistentConnection;
-        private readonly ILogger<EventBus> _logger;
+        private readonly IConnectionService _persistentConnection;
+        private readonly ILogger<MessageBus> _logger;
         private IModel _consumerChannel;
         private readonly string _queuename;
         private readonly bool _durableQueue;
-        public EventBus(IConnectionServ persistentConnection, ILogger<EventBus> logger, string queueName, bool durableQueue)
+        public MessageBus(IConnectionService persistentConnection, ILogger<MessageBus> logger, string queueName, bool durableQueue)
         {
             _persistentConnection = persistentConnection;
             _logger = logger;
@@ -31,14 +30,26 @@ namespace STP.RabbitMq
             _durableQueue = durableQueue;
             _consumerChannel = SetUpConsumerChannel();
         }
-
+        private string ConvertToRabbitMqExchangeType(RabbitMqExchangeType customExchangeType)
+        {
+            switch (customExchangeType)
+            {
+                case RabbitMqExchangeType.DirectExchange:
+                    return ExchangeType.Direct;
+                case RabbitMqExchangeType.FanoutExchange:
+                    return ExchangeType.Fanout;
+                default:
+                    throw new ArgumentException($"No corresponding RabbitMq exchange type exists for {customExchangeType}", nameof(RabbitMqExchangeType));
+            }
+            
+        }
         private IModel SetUpConsumerChannel()
         {
             _logger.LogInformation("Starting setup of RabbitMQ consumer channel");
             var consumerChannel = CreateRabbitMqChannel();
             CreateQueue(consumerChannel, _queuename, _durableQueue);
             consumerChannel.BasicQos(prefetchSize: 0, prefetchCount: 5, global: false);
-            StartConsumingEvents(consumerChannel);
+            StartConsumingMessages(consumerChannel);
             consumerChannel.CallbackException += (sender, ea) =>
             {
                 _logger.LogWarning("Recreating RabbitMQ consumer channel");
@@ -69,49 +80,48 @@ namespace STP.RabbitMq
                                  arguments: null);
         }
 
-        private void StartConsumingEvents(IModel consumerChannel)
+        private void StartConsumingMessages(IModel consumerChannel)
         {
             var consumer = new EventingBasicConsumer(consumerChannel);
             consumer.Received += async (model, ea) =>
             {
-                var eventName = ea.RoutingKey;
+                var messageName = ea.RoutingKey;
                 var message = Encoding.UTF8.GetString(ea.Body);
-                _logger.LogInformation("Asking to handle the event {EventName} ", eventName);
-                await HandleEvent(eventName, message);
+                _logger.LogInformation("Asking to handle the message {MessageName} ", messageName);
+                await HandleMessage(messageName, message);
                 consumerChannel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
-                _logger.LogInformation("Event handled");
+                _logger.LogInformation("Message handled");
             };
             consumerChannel.BasicConsume(queue: _queuename,
                  autoAck: false,
                  consumer: consumer);
-            _logger.LogInformation("Consumer channel is ready to handle events ");
+            _logger.LogInformation("Consumer channel is ready to handle messages ");
         }
-        private async Task HandleEvent(string eventName, string message)
+        private async Task HandleMessage(string messageName, string message)
         {
-            if (!dictionary.ContainsKey(eventName))
+            if (dictionary.TryGetValue(messageName, out Subscription subscription))
             {
-                return;
-            }
-            var eventType = dictionary[eventName].EventType;
-            var @event = (IEvent)JsonConvert.DeserializeObject(message, eventType);
-            var eventHandlers = dictionary[eventName].EventHandlers;
-            foreach (var handler in eventHandlers)
-            {
-                await handler.HandleAsync(@event);
+                var messageType = subscription.MessageType;
+                var messageToSend = (IMessage)JsonConvert.DeserializeObject(message, messageType);
+                var messageHandlers = subscription.MessageHandlers;
+                foreach (var handler in messageHandlers)
+                {
+                    await handler.HandleAsync(messageToSend);
+                }
             }
         }
-        public void Publish(IEvent @event, string exchangeName, string exchangeType)
+        public void Publish(IMessage messageToSend, string exchangeName, RabbitMqExchangeType exchangeType)
         {
-            _logger.LogInformation($"Creating RabbitMQ channel to publish event");
+            _logger.LogInformation($"Creating RabbitMQ channel to publish message");
             using (var channel = CreateRabbitMqChannel())
             {
                 CreateExchange(exchangeName, exchangeType);
-                var message = JsonConvert.SerializeObject(@event);
+                var message = JsonConvert.SerializeObject(messageToSend);
                 var body = Encoding.UTF8.GetBytes(message);
                 var properties = channel.CreateBasicProperties();
                 properties.Persistent = true; // persistent, nonpersistent
-                var routKey = @event.GetType().Name;
-                _logger.LogInformation("Publishing event to RabbitMQ: {EventName}", routKey);
+                var routKey = messageToSend.GetType().Name;
+                _logger.LogInformation("Publishing message to RabbitMQ: {MessageName}", routKey);
                 channel.BasicPublish(exchange: exchangeName,
                                       routingKey: routKey,
                                       basicProperties: properties,
@@ -119,52 +129,56 @@ namespace STP.RabbitMq
             }
         }
 
-        public void Subscribe<TEvent, TEventHandler>(string exchangeName, string exchangeType)
-            where TEvent : IEvent
-            where TEventHandler : IEventHandler
+        public void Subscribe<TMessage, TMessageHandler>(string exchangeName, RabbitMqExchangeType exchangeType)
+            where TMessage : IMessage
+            where TMessageHandler : IMessageHandler
         {
             CreateExchange(exchangeName, exchangeType);
-            var eventType = typeof(TEvent);
-            var handlerType = typeof(TEventHandler);
+            var messageType = typeof(TMessage);
+            var handlerType = typeof(TMessageHandler);
             var handlerInstance = Activator.CreateInstance(handlerType);
 
-            AddToSubscriptionsDictionary(eventType, handlerType, (IEventHandler)handlerInstance);
-            _logger.LogInformation("Subscribing to event {EventName} with { EventHandler}", eventType.Name, handlerType.Name);
+            AddToSubscriptionsDictionary(messageType, handlerType, (IMessageHandler)handlerInstance);
+            _logger.LogInformation("Subscribing to message {MessageName} with { MessageHandler}", messageType.Name, handlerType.Name);
             _consumerChannel.QueueBind(queue: _queuename,
                                       exchange: exchangeName,
-                                      routingKey: eventType.Name);
+                                      routingKey: messageType.Name);
         }
 
-        private void AddToSubscriptionsDictionary(Type eventType, Type handlerType, IEventHandler handlerInstance)
+        private void AddToSubscriptionsDictionary(Type messageType, Type handlerType, IMessageHandler handlerInstance)
         {
-            var subscription = dictionary.GetOrAdd(eventType.Name, new Subscription(eventType));
-            subscription.AddEventHandler(handlerType, handlerInstance);
+            var subscription = dictionary.GetOrAdd(messageType.Name, new Subscription(messageType));
+            subscription.AddMessageHandler(handlerType, handlerInstance);
         }
 
-        public void Unsubscribe<TEvent, TEventHandler>(string exchangeName)
-             where TEvent : IEvent
-            where TEventHandler : IEventHandler
+        public void Unsubscribe<TMessage, TMessageHandler>(string exchangeName)
+             where TMessage : IMessage
+            where TMessageHandler : IMessageHandler
         {
             using (var channel = CreateRabbitMqChannel())
             {
-                var eventName = typeof(TEvent).Name;
-                var subscription = dictionary[eventName];
-                if (subscription != null) subscription.RemoveEventHandler(typeof(TEventHandler));
+                var messageName = typeof(TMessage).Name;
+                if (dictionary.TryGetValue(messageName, out Subscription subscription))
+                {
+                    subscription.RemoveMessageHandler(typeof(TMessageHandler));
+                }
                 channel.QueueUnbind(
                     queue: _queuename,
                     exchange: exchangeName,
-                    routingKey: eventName
-                );
+                    routingKey: messageName);
             }
         }
 
-        private void CreateExchange(string exchangeName, string exchangeType)
+        private void CreateExchange(string exchangeName, RabbitMqExchangeType localExchangeType)
         {
             using (var channel = CreateRabbitMqChannel())
             {
+                var exchangeType = ConvertToRabbitMqExchangeType(localExchangeType);
                 _logger.LogInformation($"Creating exchange {exchangeName} of type {exchangeType} ");
                 channel.ExchangeDeclare(exchange: exchangeName,
-                                        type: exchangeType);
+                                        type: exchangeType,
+                                        // do we want it to be durable?
+                                        durable:true);
             }
         }
         public void Dispose()

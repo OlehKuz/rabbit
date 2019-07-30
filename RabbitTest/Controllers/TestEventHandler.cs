@@ -11,10 +11,10 @@ using System.Threading.Tasks;
 
 namespace RabbitMQ
 {
-    public class TestEventHandler : IEventHandler
+    public class TestEventHandler : IMessageHandler
     {
         //private static string s = "abc";
-        public async Task HandleAsync(IEvent @event)
+        public async Task HandleAsync(IMessage @event)
         {
             //string ss = s;
            // s += s;

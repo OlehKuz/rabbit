@@ -4,7 +4,7 @@ using System.Text;
 
 namespace STP.Interfaces.Events
 {
-    public interface IEvent
+    public interface IMessage
     {
     }
 }

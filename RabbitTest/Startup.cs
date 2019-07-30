@@ -35,13 +35,13 @@ namespace RabbitTest
         {
             UseSerilog(services);
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
-            services.AddSingleton<IConnectionServ, ConnectionService>();
-            services.AddSingleton<IEventBus, EventBus>(sp =>
+            services.AddSingleton<IConnectionService, ConnectionService>();
+            services.AddSingleton<IMessageBus, MessageBus>(sp =>
             {
-                var connection = sp.GetRequiredService<IConnectionServ>();
-                var logger = sp.GetRequiredService<ILogger<EventBus>>();
+                var connection = sp.GetRequiredService<IConnectionService>();
+                var logger = sp.GetRequiredService<ILogger<MessageBus>>();
 
-                return new EventBus(connection, logger,  "",false);
+                return new MessageBus(connection, logger,  "",false);
             });
             
         }
@@ -52,12 +52,13 @@ namespace RabbitTest
             loggerFactory.AddSerilog();
 
             app.UseMvc();
-            var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
-            eventBus.Subscribe<TestEvent, TestEventHandler>("TestExchange", "direct");
-            eventBus.Subscribe<TestEvent, TestEventHandler>("Exchange2", "direct");
+            var eventBus = app.ApplicationServices.GetRequiredService<IMessageBus>();
+            //eventBus.Subscribe<TestEvent, TestEventHandler>("TestExchange", "direct");
+            eventBus.Unsubscribe<TestEvent, TestEventHandler>("TestExchange");
+            eventBus.Subscribe<TestEvent, TestEventHandler>("Exchange2", RabbitMqExchangeType.DirectExchange);
             var testEvent = new TestEvent();
-            for(int i = 0; i< 20; i++) eventBus.Publish(testEvent, "TestExchange", "direct");
-            for (int i = 0; i < 20; i++) eventBus.Publish(testEvent, "Exchange2", "direct");
+            for(int i = 0; i< 20; i++) eventBus.Publish(testEvent, "TestExchange", RabbitMqExchangeType.DirectExchange);
+            for (int i = 0; i < 20; i++) eventBus.Publish(testEvent, "Exchange2", RabbitMqExchangeType.DirectExchange);
 
         }
         private void UseSerilog(IServiceCollection services)

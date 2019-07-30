@@ -6,28 +6,28 @@ namespace STP.RabbitMq
 {
     public sealed class Subscription
     {
-        public Type EventType { get; }
-        private HashSet<Type> handlerTypes = new HashSet<Type>();
-        public List<IEventHandler> EventHandlers { get; } = new List<IEventHandler>();
+        public Type MessageType { get; }
+        private HashSet<Type> messageHandlerTypes = new HashSet<Type>();
+        public List<IMessageHandler> MessageHandlers { get; } = new List<IMessageHandler>();
 
-        public Subscription(Type eventType)
+        public Subscription(Type messageType)
         {
-            EventType = eventType;
+            MessageType = messageType;
         }
 
-        public void AddEventHandler(Type handlerType, IEventHandler handler)
+        public void AddMessageHandler(Type handlerType, IMessageHandler handler)
         {
-            if (handlerTypes.Contains(handlerType)) return;
-            handlerTypes.Add(handlerType);
-            EventHandlers.Add(handler);
+            if (messageHandlerTypes.Contains(handlerType)) return;
+            messageHandlerTypes.Add(handlerType);
+            MessageHandlers.Add(handler);
         }
 
-        public void RemoveEventHandler(Type handlerType)
+        public void RemoveMessageHandler(Type handlerType)
         {
-            if (handlerTypes.Contains(handlerType))
+            if (messageHandlerTypes.Contains(handlerType))
             {
-                EventHandlers.RemoveAll(e => e.GetType() == handlerType);
-                handlerTypes.Remove(handlerType);
+                MessageHandlers.RemoveAll(e => e.GetType() == handlerType);
+                messageHandlerTypes.Remove(handlerType);
             }
         }
     }

@@ -3,7 +3,7 @@ using System;
 
 namespace STP.RabbitMq
 {
-    public interface IConnectionServ : IDisposable
+    public interface IConnectionService : IDisposable
     {
 
         bool IsConnected { get; }

@@ -7,20 +7,19 @@ using System.IO;
 
 namespace STP.RabbitMq
 {
-    public class ConnectionService : IConnectionServ
+    public sealed class ConnectionService : IConnectionService
     {
-        private readonly IOptions<RabbitMQOptions> _options;
+        private readonly RabbitMQOptions _options;
         private readonly ILogger<ConnectionService> _logger;
-        IConnection _connection;
-        bool _disposed;
+        private IConnection _connection;
+        private bool _disposed;
 
-        object sync_root = new object();
+        private object sync_root = new object();
 
-        public ConnectionService(ILogger<ConnectionService> logger,
-            IOptions<RabbitMQOptions> options)
+        public ConnectionService(ILogger<ConnectionService> logger, IOptions<RabbitMQOptions> options)
         {
-            _options = options ?? throw new ArgumentNullException(nameof(options));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _options = options.Value;
+            _logger = logger;
         }
 
         public bool IsConnected
@@ -53,7 +52,7 @@ namespace STP.RabbitMq
             }
             catch (IOException ex)
             {
-                _logger.LogCritical(ex.ToString());
+                _logger.LogCritical(ex, ex.Message);
             }
         }
 
@@ -64,7 +63,7 @@ namespace STP.RabbitMq
             lock (sync_root)
             {
 
-                _connection = CreateConnect(_options);
+                _connection = CreateRabbitConnection(_options);
 
 
                 if (IsConnected)
@@ -86,15 +85,14 @@ namespace STP.RabbitMq
             }
         }
 
-        public IConnection CreateConnect(IOptions<RabbitMQOptions> options)
+        public IConnection CreateRabbitConnection(RabbitMQOptions options)
         {
-            var opt = options.Value;
             var factory = new ConnectionFactory
             {
-                UserName = opt.UserName,
-                Port = opt.Port,
-                Password = opt.Password,
-                VirtualHost = opt.VirtualHost
+                UserName = options.UserName,
+                Port = options.Port,
+                Password = options.Password,
+                VirtualHost = options.VirtualHost
             };
 
             return factory.CreateConnection();

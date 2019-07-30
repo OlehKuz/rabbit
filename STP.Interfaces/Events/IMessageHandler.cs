@@ -2,8 +2,8 @@
 
 namespace STP.Interfaces.Events
 {
-    public interface IEventHandler
+    public interface IMessageHandler
     {
-        Task HandleAsync(IEvent @event);
+        Task HandleAsync(IMessage message);
     }
 }

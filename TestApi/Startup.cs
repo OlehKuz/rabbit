@@ -36,13 +36,13 @@ namespace TestApi
             UseSerilog(services);
            
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
-            services.AddSingleton<IConnectionServ, ConnectionService>();
-            services.AddSingleton<IEventBus, EventBus>(sp =>
+            services.AddSingleton<IConnectionService, ConnectionService>();
+            services.AddSingleton<IMessageBus, MessageBus>(sp =>
             {
-                var connection = sp.GetRequiredService<IConnectionServ>();
-                var logger = sp.GetRequiredService<ILogger<EventBus>>();
+                var connection = sp.GetRequiredService<IConnectionService>();
+                var logger = sp.GetRequiredService<ILogger<MessageBus>>();
 
-                return new EventBus(connection, logger, "someQueueName", false);
+                return new MessageBus(connection, logger, "someQueueName", false);
             });
         }
 
@@ -51,10 +51,10 @@ namespace TestApi
         {
             loggerFactory.AddSerilog();
             app.UseMvc();
-            var eventBus = app.ApplicationServices.GetRequiredService<IEventBus>();
-            eventBus.Subscribe<TestEvent, TestEventHandler>("TestExchange","direct");
-            eventBus.Unsubscribe<TestEvent, TestEventHandler>("TestExchange");      
-            eventBus.Subscribe<TestEvent, TestEventHandler>("Exchange2", "direct");
+            var eventBus = app.ApplicationServices.GetRequiredService<IMessageBus>();
+            eventBus.Subscribe<TestEvent, TestEventHandler>("TestExchange",RabbitMqExchangeType.DirectExchange);
+                  
+            eventBus.Subscribe<TestEvent, TestEventHandler>("Exchange2", RabbitMqExchangeType.DirectExchange);
         }
         private void UseSerilog(IServiceCollection services)
         {
